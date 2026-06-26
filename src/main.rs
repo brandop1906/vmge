@@ -16,15 +16,22 @@ fn main() {
         0x0B,                                                  // RET
     ];
 
-    let mut vm = vm::VM::new(scene);
+    let new_scene = "SETBYTE 0, 3, 1
+SETBYTE 2, 7, 0
+IFUB 0, 3, 0, 8
+SOLID 1
+IFUB 2, 7, 0, 9
+ANIME1 0, 2
+RET";
+
+    /*let mut vm = vm::VM::new(scene);
 
     vm.run();
     vm.run();
+    */
 
-    let result = assembler::assemble_line("FOOBAR 1");
-    let result2 = assembler::assemble_line("WINDOW 0, 50, 100, 200, 60");
-    let result3 = assembler::assemble_line("SETBYTE 1, 5, 1");
-    let resul4 = assembler::assemble_line("IFUB 1, 5, 0, 26");
-    let result5 = assembler::assemble_line("RET");
-    println!("{:?}", result);
+    let results = assembler::assemble_scene(&new_scene);
+    println!("{:?}", results);
+    let mut vm = vm::VM::new(results);
+    vm.run();
 }   
