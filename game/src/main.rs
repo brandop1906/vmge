@@ -8,7 +8,7 @@ fn main() {
         .run();
 }
 
-pub fn spawn_entity(mut commands: Commands) {
+pub fn spawn_entity(mut commands: Commands,  asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
     commands.spawn((
         Sprite {
@@ -16,10 +16,15 @@ pub fn spawn_entity(mut commands: Commands) {
             custom_size: Some(Vec2::new(32.0, 32.0)),
             ..default()
         },
-        Transform::from_xyz(0.0, 0.0, 0.0),
+        Transform::from_xyz(0.0, 0.0, 1.0),
         Name { name: "Player".to_string() }, 
         Movement { speed_x: 20.0, speed_y: 20.0 },  // Add the Movement component with desired speed values.
         PlayerControlled, // Add the PlayerControlled component to mark this entity as player-controlled.
+    ));
+
+    commands.spawn((
+        Sprite::from_image(asset_server.load(r"town.png")),
+        Transform::from_xyz(0.0, 0.0, 0.0),
     ));
 
     commands.spawn(Name { name: "NPC".to_string() });
