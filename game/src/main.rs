@@ -8,9 +8,9 @@ struct ScriptVM {
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .insert_resource(ScriptVM { vm: vm::interpreter::VM::new(vm::assembler::assemble_scene("SOLID 1\nWINDOW 100,50,300,100,0\nRET")) }) // Initialize the ScriptVM resource with a new VM instance.
+        .insert_resource(ScriptVM { vm: vm::interpreter::VM::new(vm::assembler::assemble_scene("SOLID 1\nWINDOW 100,50,300,100,0\nMESSAGE 0,0\nRET")) }) // Initialize the ScriptVM resource with a new VM instance.
         .add_systems(Startup, (spawn_entity, run_script))
-        .add_systems(Update, (current_position, move_player, process_vm_commands))
+        .add_systems(Update, (move_player, process_vm_commands, render_text))
         .run();
 }
 
@@ -37,11 +37,11 @@ pub fn spawn_entity(mut commands: Commands,  asset_server: Res<AssetServer>) {
 
     commands.spawn(Name { name: "NPC".to_string() });
 }
-pub fn current_position(query: Query<(&Transform, &Name), With<PlayerControlled>>) {
+/*pub fn current_position(query: Query<(&Transform, &Name), With<PlayerControlled>>) {
     for (transform, name) in query.iter() {
         println!("{} is at position ({}, {})", name.name, transform.translation.x, transform.translation.y);
     }
-}
+}*/
 #[derive(Component)]
 pub struct Name
     {
@@ -96,11 +96,17 @@ pub struct FieldEntityId {
 #[derive(Component)]
 pub struct WindowId(pub u8);
 
+#[derive(Component)]
+pub struct TextContent(pub String);
+
 fn run_script(mut script: ResMut<ScriptVM>) {
     script.vm.run();
 }
 
-fn process_vm_commands(mut script: ResMut<ScriptVM>, query_set_solid: Query<(Entity, &FieldEntityId)>, query_window_close: Query<(Entity, &WindowId)>, mut commands: Commands) {
+fn process_vm_commands(mut script: ResMut<ScriptVM>, query_set_solid: Query<(Entity, &FieldEntityId)>, 
+    query_window_close: Query<(Entity, &WindowId)>, mut commands: Commands) 
+    {
+    let mut unprocessed = Vec::new();
     for command in script.vm.commands.drain(..) {
         match command {
             vm::commands::Command::SetSolid { character_id, enabled } => {
@@ -125,6 +131,20 @@ fn process_vm_commands(mut script: ResMut<ScriptVM>, query_set_solid: Query<(Ent
                     WindowId(window_id),
                 ));
             }
+
+            vm::commands::Command::Message { window_id, text } => {
+                let mut found = false;
+                for (entity, id) in query_window_close.iter() {
+                    if id.0 == window_id {
+                        commands.entity(entity).insert(TextContent(text.clone()));
+                        found = true;
+                    }
+                }
+                if !found {
+                    unprocessed.push(vm::commands::Command::Message { window_id, text });
+                }
+            }
+
             vm::commands::Command::WindowClose { window_id } => {
                 for (entity, window_id_component) in query_window_close.iter() {
                     if window_id_component.0 == window_id {
@@ -135,6 +155,21 @@ fn process_vm_commands(mut script: ResMut<ScriptVM>, query_set_solid: Query<(Ent
             _ => {}
         }
     }
+    script.vm.commands.extend(unprocessed);
 }
 
-
+fn render_text(query: Query<(Entity, &TextContent), Added<TextContent>>, mut commands: Commands) {
+    for (entity, text_content) in query.iter() {
+        println!("Rendering text: {}", text_content.0);
+        commands.entity(entity).with_children(|parent| {
+            parent.spawn((
+                Text2d::new(&text_content.0),
+                TextFont {
+                    font_size: 20.0,
+                    ..default()
+                },
+                Transform::from_xyz(0.0, 0.0, 1.0),
+            ));
+        });
+    }
+}

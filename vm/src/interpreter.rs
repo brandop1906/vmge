@@ -55,6 +55,21 @@ impl VM {
                     }
                 }
                 Opcode::Message => {
+                    let window_id = self.bytecode[self.counter_position + 1];
+                    let message_id = self.bytecode[self.counter_position + 2] as u16 
+                        | (self.bytecode[self.counter_position + 3] as u16) << 8;
+                    
+                    let text = match message_id {
+                        0 => "Welcome to Midgar!".to_string(),
+                        1 => "The reactor is just ahead.".to_string(),
+                        _ => format!("Unknown message ID: {}", message_id),
+                    };
+
+                    self.commands.push(Command::Message {
+                        window_id,
+                        text, 
+                    });
+                    
                     self.counter_position += 4;
                     println!("MESSAGE");
                 }
