@@ -1,10 +1,16 @@
 use bevy::prelude::*;
 
+#[derive(Resource)]
+struct ScriptVM {
+    vm: vm::interpreter::VM,
+}
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_systems(Startup, spawn_entity)
-        .add_systems(Update, (current_position, move_player))
+        .insert_resource(ScriptVM { vm: vm::interpreter::VM::new(vm::assembler::assemble_scene("SOLID 1\nRET")) }) // Initialize the ScriptVM resource with a new VM instance.
+        .add_systems(Startup, (spawn_entity, run_script))
+        .add_systems(Update, (current_position, move_player, process_vm_commands))
         .run();
 }
 
@@ -77,3 +83,13 @@ pub struct Movement
 #[derive(Component)]
 pub struct PlayerControlled;
 
+fn run_script(mut script: ResMut<ScriptVM>) {
+    script.vm.run();
+}
+
+fn process_vm_commands(mut script: ResMut<ScriptVM>) {
+    for command in script.vm.commands.drain(..) {
+        println!("Processing command: {:?}", command);
+    }
+    // Process commands from the VM and execute them using Bevy's ECS.
+}

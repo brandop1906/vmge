@@ -1,10 +1,11 @@
 use crate::opcodes::Opcode;
+use crate::commands::Command;
 
 pub struct VM {
     counter_position: usize,
     bytecode: Vec<u8>,
     banks: [[u8; 256]; 256],
-
+    pub commands: Vec<Command>,
 }
 
 impl VM {
@@ -13,6 +14,7 @@ impl VM {
             bytecode,
             counter_position: 0,
             banks: [[0; 256]; 256],
+            commands: Vec::new(),
         }
     }
 
@@ -21,6 +23,11 @@ impl VM {
             let opcode = Opcode::from_byte(self.bytecode[self.counter_position]);
             match opcode {
                 Opcode::Solid => {
+                    self.commands.push(Command::SetSolid {
+                        character_id: 0, // hardcoded for now
+                        enabled: self.bytecode[self.counter_position + 1] != 0,
+                    });
+
                     self.counter_position += 2;
                     println!("SOLID");
                 }
