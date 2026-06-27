@@ -63,8 +63,21 @@ impl VM {
                     println!("WINCLOSE");
                 }
                 Opcode::Window => {
+                    let x = self.bytecode[self.counter_position + 1] as i16
+                        | (self.bytecode[self.counter_position + 2] as i16) << 8;
+                    let y = self.bytecode[self.counter_position + 3] as i16
+                        | (self.bytecode[self.counter_position + 4] as i16) << 8;
+                    let width = self.bytecode[self.counter_position + 5] as i16
+                        | (self.bytecode[self.counter_position + 6] as i16) << 8;
+                    let height = self.bytecode[self.counter_position + 7] as i16
+                        | (self.bytecode[self.counter_position + 8] as i16) << 8;
+                    let window_id = self.bytecode[self.counter_position + 9];
+
+                    self.commands.push(Command::WindowOpen {
+                        x, y, width, height, window_id,
+                    });
+
                     self.counter_position += 10;
-                    println!("WINDOW");
                 }
                 Opcode::SetByte => {
                     let bank = self.bytecode[self.counter_position + 1] as usize;

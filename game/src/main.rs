@@ -8,7 +8,7 @@ struct ScriptVM {
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .insert_resource(ScriptVM { vm: vm::interpreter::VM::new(vm::assembler::assemble_scene("SOLID 1\nRET")) }) // Initialize the ScriptVM resource with a new VM instance.
+        .insert_resource(ScriptVM { vm: vm::interpreter::VM::new(vm::assembler::assemble_scene("SOLID 1\nWINDOW 100,50,300,100,0\nRET")) }) // Initialize the ScriptVM resource with a new VM instance.
         .add_systems(Startup, (spawn_entity, run_script))
         .add_systems(Update, (current_position, move_player, process_vm_commands))
         .run();
@@ -93,21 +93,42 @@ pub struct FieldEntityId {
     pub id: u8,
 }
 
+#[derive(Component)]
+pub struct WindowId(pub u8);
+
 fn run_script(mut script: ResMut<ScriptVM>) {
     script.vm.run();
 }
 
-fn process_vm_commands(mut script: ResMut<ScriptVM>, query: Query<(Entity, &FieldEntityId)>, mut commands: Commands) {
+fn process_vm_commands(mut script: ResMut<ScriptVM>, query_set_solid: Query<(Entity, &FieldEntityId)>, query_window_close: Query<(Entity, &WindowId)>, mut commands: Commands) {
     for command in script.vm.commands.drain(..) {
         match command {
             vm::commands::Command::SetSolid { character_id, enabled } => {
-                for (entity, field_entity_id) in query.iter() {
+                for (entity, field_entity_id) in query_set_solid.iter() {
                     if field_entity_id.id == character_id {
                         if enabled {
                             commands.entity(entity).insert(Solid);
                         } else {
                             commands.entity(entity).remove::<Solid>();
                         }
+                    }
+                }
+            }
+            vm::commands::Command::WindowOpen { x, y, width, height, window_id } => {
+                commands.spawn((
+                    Transform::from_xyz(x as f32, y as f32, 2.0),
+                    Sprite {
+                        color: Color::srgba(0.0, 0.1, 0.3, 0.9),
+                        custom_size: Some(Vec2::new(width as f32, height as f32)),
+                        ..default()
+                    },
+                    WindowId(window_id),
+                ));
+            }
+            vm::commands::Command::WindowClose { window_id } => {
+                for (entity, window_id_component) in query_window_close.iter() {
+                    if window_id_component.0 == window_id {
+                        commands.entity(entity).despawn()
                     }
                 }
             }
