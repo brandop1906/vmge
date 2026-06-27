@@ -22,6 +22,8 @@ pub fn spawn_entity(mut commands: Commands,  asset_server: Res<AssetServer>) {
         Name { name: "Player".to_string() }, 
         Movement { speed_x: 200.0, speed_y: 200.0 },  // Add the Movement component with desired speed values.
         PlayerControlled, // Add the PlayerControlled component to mark this entity as player-controlled.
+        Solid, // Add the Solid component to mark this entity as solid. This can be used for collision detection or other purposes.
+        FieldEntityId { id: 0 } // Add the FieldEntityId component with an ID of 0. This can be used to identify entities within a game field or similar structure.
     ));
 
     commands.spawn((
@@ -83,13 +85,35 @@ pub struct Movement
 #[derive(Component)]
 pub struct PlayerControlled;
 
+#[derive(Component)]
+pub struct Solid; // Add a Solid component to represent solid entities.
+
+#[derive(Component)]
+pub struct FieldEntityId {
+    pub id: u8,
+}
+
 fn run_script(mut script: ResMut<ScriptVM>) {
     script.vm.run();
 }
 
-fn process_vm_commands(mut script: ResMut<ScriptVM>) {
+fn process_vm_commands(mut script: ResMut<ScriptVM>, query: Query<(Entity, &FieldEntityId)>, mut commands: Commands) {
     for command in script.vm.commands.drain(..) {
-        println!("Processing command: {:?}", command);
+        match command {
+            vm::commands::Command::SetSolid { character_id, enabled } => {
+                for (entity, field_entity_id) in query.iter() {
+                    if field_entity_id.id == character_id {
+                        if enabled {
+                            commands.entity(entity).insert(Solid);
+                        } else {
+                            commands.entity(entity).remove::<Solid>();
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
     }
-    // Process commands from the VM and execute them using Bevy's ECS.
 }
+
+
