@@ -6,13 +6,19 @@ struct ScriptVM {
     vm: vm::interpreter::VM,
     state: vm::interpreter::ExecutionResult,
     strings : Vec<String>,
+    pending: Vec<PendingCommand>,
+}
+
+struct PendingCommand {
+    command: vm::commands::Command,
+    retry_count: u8,
 }
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(ScriptVM { vm: vm::interpreter::VM::new(vm::assembler::assemble_scene("SOLID 0,1\nWINDOW 100,50,300,100,0\nMESSAGE 0,0\nMESSAGE 0,1\nWINCLOSE 0\nRET")) 
-            , state: vm::interpreter::ExecutionResult::Paused, strings: vec!["Welcome to Midgar!".to_string(), "The reactor is just ahead.".to_string()]}) // Initialize the ScriptVM resource with a new VM instance.
+            , state: vm::interpreter::ExecutionResult::Paused, strings: vec!["Welcome to Midgar!".to_string(), "The reactor is just ahead.".to_string()], pending: Vec::new()}) // Initialize the ScriptVM resource with a new VM instance.
         .add_systems(Startup, (spawn_entity, run_script))
         .add_systems(Update, (move_player, process_vm_commands, render_text, close_dialog_on_input))
         .run();
@@ -106,19 +112,23 @@ fn run_script(mut script: ResMut<ScriptVM>) {
 fn process_vm_commands(mut script: ResMut<ScriptVM>, query_set_solid: Query<(Entity, &FieldEntityId)>, 
     query_window_close: Query<(Entity, &WindowId)>, mut commands: Commands) 
     {
-    let mut unprocessed = Vec::new();
     let commands_to_process: Vec<_> = script.vm.commands.drain(..).collect();
     for command in commands_to_process {
         match command {
             vm::commands::Command::SetSolid { character_id, enabled } => {
+                let mut found = false;
                 for (entity, field_entity_id) in query_set_solid.iter() {
                     if field_entity_id.id == character_id {
+                        found = true;
                         if enabled {
                             commands.entity(entity).insert(Solid);
                         } else {
                             commands.entity(entity).remove::<Solid>();
                         }
                     }
+                }
+                if !found {
+                    script.pending.push(PendingCommand { command: vm::commands::Command::SetSolid { character_id, enabled }, retry_count: 1})
                 }
             }
             vm::commands::Command::WindowOpen { x, y, width, height, window_id } => {
@@ -146,21 +156,91 @@ fn process_vm_commands(mut script: ResMut<ScriptVM>, query_set_solid: Query<(Ent
                     }
                 }
                 if !found {
-                    unprocessed.push(vm::commands::Command::Message { window_id, message_id });
+                    script.pending.push(PendingCommand { command: vm::commands::Command::Message { window_id, message_id }, retry_count: 1 });
                 }
             }
 
             vm::commands::Command::WindowClose { window_id } => {
+                let mut found = false;
                 for (entity, window_id_component) in query_window_close.iter() {
                     if window_id_component.0 == window_id {
+                        found = true;
                         commands.entity(entity).despawn()
                     }
+                }
+                if !found {
+                    script.pending.push(PendingCommand { command: vm::commands::Command::WindowClose { window_id }, retry_count: 1 });
                 }
             }
             _ => {}
         }
     }
-    script.vm.commands.extend(unprocessed);
+    let pendings_to_process: Vec<_> = script.pending.drain(..).collect();
+    for pending in pendings_to_process {
+        match pending.command  {
+            vm::commands::Command::Message { window_id, message_id } => {
+                let mut found = false;
+                let text = script.strings[message_id as usize].clone();
+
+                for (entity, id) in query_window_close.iter() {
+                    
+                    if id.0 == window_id {
+                        commands.entity(entity).remove::<TextContent>();
+                        commands.entity(entity).insert(TextContent(text.clone()));
+                        found = true;
+                    }
+                }
+                if !found {
+                    if pending.retry_count >= 60 {
+                        println!("Failed to find window id {} after 60 retries", window_id);
+                    } else {  // retry again after a frame. 
+                        println!("Retrying to find window id {} after 1 frame", window_id);
+                        script.pending.push(PendingCommand { command: vm::commands::Command::Message { window_id, message_id }, retry_count: pending.retry_count + 1 });
+                    }
+                }
+            }
+
+            vm::commands::Command::SetSolid { character_id, enabled} => {
+                let mut found = false;
+                for (entity, field_entity_id) in query_set_solid.iter() {
+                    if field_entity_id.id == character_id {
+                        found = true;
+                        if enabled {
+                            commands.entity(entity).insert(Solid);
+                        } else {
+                            commands.entity(entity).remove::<Solid>();
+                        }
+                    }
+                }
+                if !found {
+                    if pending.retry_count >= 60 {
+                        println!("Failed to find character id {} after 60 retries", character_id);
+                    } else {  // retry again after a frame. 
+                        println!("Retrying to find character id {} after 1 frame", character_id);
+                        script.pending.push(PendingCommand { command: vm::commands::Command::SetSolid { character_id, enabled }, retry_count: pending.retry_count + 1 });
+                    }
+                }
+            }
+            vm::commands::Command::WindowClose { window_id } => {
+                let mut found = false;
+                for (entity, window_id_component) in query_window_close.iter() {
+                    if window_id_component.0 == window_id {
+                        found = true;
+                        commands.entity(entity).despawn()
+                    }
+                }
+                if !found {
+                    if pending.retry_count >= 60 {
+                        println!("Failed to find window id {} after 60 retries", window_id);
+                    } else {  // retry again after a frame. 
+                        println!("Retrying to find window id {} after 1 frame", window_id);
+                        script.pending.push(PendingCommand { command: vm::commands::Command::WindowClose { window_id }, retry_count: pending.retry_count + 1 });
+                    }
+                }
+            }
+            _ => {}
+        } 
+    }
 }
 
 fn render_text(query: Query<(Entity, &TextContent, &Sprite), Added<TextContent>>, mut commands: Commands) {
