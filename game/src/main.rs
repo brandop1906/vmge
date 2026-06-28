@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use scripting::*;
+use player::*;
 mod scripting;
 mod walkmesh;
+mod player;
 
 fn main() {
     let mut walk_area = walkmesh::WalkableArea::new();
@@ -19,8 +21,14 @@ fn main() {
 
 pub fn spawn_entity(mut commands: Commands,  asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
+    commands.insert_resource(PlayerImages {
+        player_down: asset_server.load(r"Zane_down.png"),
+        player_up: asset_server.load(r"Zane_up.png"),
+        player_left: asset_server.load(r"Zane_left.png"),
+        player_right: asset_server.load(r"Zane_right.png"),
+    });
     commands.spawn((
-        Sprite::from_image(asset_server.load(r"Zane.png")),
+        Sprite::from_image(asset_server.load(r"Zane_down.png")),
         Transform::from_xyz(0.0, 0.0, 1.0).with_scale(Vec3::splat(0.5)),
         Name { name: "Player".to_string() }, 
         Movement { speed_x: 200.0, speed_y: 200.0 },  // Add the Movement component with desired speed values.
@@ -46,45 +54,3 @@ pub struct Name
     {
         pub name: String,
     }
-
-#[derive(Component)]
-pub struct Movement
-    {
-    pub speed_x: f32,
-    pub speed_y: f32,
-    }
-
-    pub fn move_player(mut query: Query<(&mut Transform, &Movement)>, window_query: Query<&WindowId>, 
-    input: Res<ButtonInput<KeyCode>>, time: Res<Time>, walk_area: Res<walkmesh::WalkableArea>) {
-        if !window_query.is_empty() {
-            return;
-        }
-        for (mut transform, movement) in query.iter_mut() {
-            let mut direction = Vec2::ZERO;
-            if input.pressed(KeyCode::ArrowLeft) || input.pressed(KeyCode::KeyA) {
-                direction.x -= 1.0;
-            }
-            if input.pressed(KeyCode::ArrowRight) || input.pressed(KeyCode::KeyD) {
-                direction.x += 1.0;
-            }
-            if input.pressed(KeyCode::ArrowUp) || input.pressed(KeyCode::KeyW) {
-                direction.y += 1.0;
-            }
-            if input.pressed(KeyCode::ArrowDown) || input.pressed(KeyCode::KeyS) {
-                direction.y -= 1.0;
-            }
-
-            if direction != Vec2::ZERO {
-                direction = direction.normalize();
-                transform.translation.x += direction.x * movement.speed_x  * time.delta_secs();
-                transform.translation.y += direction.y * movement.speed_y  * time.delta_secs();
-            }
-
-            println!("Player position: ({}, {})", transform.translation.x, transform.translation.y);
-
-            transform.translation = walk_area.clamp_position(transform.translation);
-        }
-    }
-
-#[derive(Component)]
-pub struct PlayerControlled;
