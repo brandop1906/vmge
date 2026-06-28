@@ -3,12 +3,14 @@ use bevy::prelude::*;
 #[derive(Resource)]
 struct ScriptVM {
     vm: vm::interpreter::VM,
+    state: vm::interpreter::ExecutionResult,
 }
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .insert_resource(ScriptVM { vm: vm::interpreter::VM::new(vm::assembler::assemble_scene("SOLID 1\nWINDOW 100,50,300,100,0\nMESSAGE 0,0\nRET")) }) // Initialize the ScriptVM resource with a new VM instance.
+        .insert_resource(ScriptVM { vm: vm::interpreter::VM::new(vm::assembler::assemble_scene("SOLID 1\nWINDOW 100,50,300,100,0\nMESSAGE 0,0\nMESSAGE 0,1\nWINCLOSE 0\nRET")) 
+            , state: vm::interpreter::ExecutionResult::Paused}) // Initialize the ScriptVM resource with a new VM instance.
         .add_systems(Startup, (spawn_entity, run_script))
         .add_systems(Update, (move_player, process_vm_commands, render_text, close_dialog_on_input))
         .run();
@@ -96,7 +98,7 @@ pub struct WindowId(pub u8);
 pub struct TextContent(pub String);
 
 fn run_script(mut script: ResMut<ScriptVM>) {
-    script.vm.run();
+    script.state = script.vm.run();
 }
 
 fn process_vm_commands(mut script: ResMut<ScriptVM>, query_set_solid: Query<(Entity, &FieldEntityId)>, 
@@ -132,6 +134,7 @@ fn process_vm_commands(mut script: ResMut<ScriptVM>, query_set_solid: Query<(Ent
                 let mut found = false;
                 for (entity, id) in query_window_close.iter() {
                     if id.0 == window_id {
+                        commands.entity(entity).remove::<TextContent>();
                         commands.entity(entity).insert(TextContent(text.clone()));
                         found = true;
                     }
@@ -171,12 +174,18 @@ fn render_text(query: Query<(Entity, &TextContent), Added<TextContent>>, mut com
 
 fn close_dialog_on_input(
     inputs: Res<ButtonInput<KeyCode>>, 
-    query: Query<Entity, With<WindowId>>,
+    query: Query<Entity, With<TextContent>>,
     mut commands: Commands,
+    mut script: ResMut<ScriptVM>,  // Add this line to access the ScriptVM resource
 ){
     if inputs.just_pressed(KeyCode::Space) {
         for entity in query.iter() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).despawn_children();
+            commands.entity(entity).remove::<TextContent>();
+
+        }
+    if script.state == vm::interpreter::ExecutionResult::Paused {
+        script.state = script.vm.run();
         }
     }
 }

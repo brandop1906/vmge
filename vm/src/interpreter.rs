@@ -1,6 +1,12 @@
 use crate::opcodes::Opcode;
 use crate::commands::Command;
 
+#[derive(PartialEq)]
+pub enum ExecutionResult {
+    Paused,
+    Running,
+}
+
 pub struct VM {
     counter_position: usize,
     bytecode: Vec<u8>,
@@ -18,7 +24,7 @@ impl VM {
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> ExecutionResult {
         loop {
             let opcode = Opcode::from_byte(self.bytecode[self.counter_position]);
             match opcode {
@@ -69,11 +75,13 @@ impl VM {
                         window_id,
                         text, 
                     });
-                    
-                    self.counter_position += 4;
                     println!("MESSAGE");
+                    self.counter_position += 4;
+                    return ExecutionResult::Paused; // Pause execution to wait for user input
                 }
                 Opcode::WinClose => {
+                    let window_id = self.bytecode[self.counter_position + 1];
+                    self.commands.push(Command::WindowClose { window_id});
                     self.counter_position += 2;
                     println!("WINCLOSE");
                 }
@@ -91,7 +99,7 @@ impl VM {
                     self.commands.push(Command::WindowOpen {
                         x, y, width, height, window_id,
                     });
-
+                    println!("WINDOW");
                     self.counter_position += 10;
                 }
                 Opcode::SetByte => {
@@ -104,11 +112,11 @@ impl VM {
                 }
                 Opcode::Ret => {
                     println!("RET");
-                    break;
+                    self.counter_position = 0; // Reset counter position to start of bytecode
+                    return ExecutionResult::Running; // End execution
                 }
             }
             
         }
-        self.counter_position = 0;
     }
 }
