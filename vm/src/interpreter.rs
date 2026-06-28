@@ -30,11 +30,11 @@ impl VM {
             match opcode {
                 Opcode::Solid => {
                     self.commands.push(Command::SetSolid {
-                        character_id: 0, // hardcoded for now
-                        enabled: self.bytecode[self.counter_position + 1] != 0,
+                        character_id: self.bytecode[self.counter_position + 1],
+                        enabled: self.bytecode[self.counter_position + 2] != 0,
                     });
 
-                    self.counter_position += 2;
+                    self.counter_position += 3;
                     println!("SOLID");
                 }
                 Opcode::Anime1 => {
@@ -65,15 +65,9 @@ impl VM {
                     let message_id = self.bytecode[self.counter_position + 2] as u16 
                         | (self.bytecode[self.counter_position + 3] as u16) << 8;
                     
-                    let text = match message_id {
-                        0 => "Welcome to Midgar!".to_string(),
-                        1 => "The reactor is just ahead.".to_string(),
-                        _ => format!("Unknown message ID: {}", message_id),
-                    };
-
                     self.commands.push(Command::Message {
                         window_id,
-                        text, 
+                        message_id, 
                     });
                     println!("MESSAGE");
                     self.counter_position += 4;

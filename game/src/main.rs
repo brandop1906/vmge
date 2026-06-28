@@ -4,13 +4,14 @@ use bevy::prelude::*;
 struct ScriptVM {
     vm: vm::interpreter::VM,
     state: vm::interpreter::ExecutionResult,
+    strings : Vec<String>,
 }
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .insert_resource(ScriptVM { vm: vm::interpreter::VM::new(vm::assembler::assemble_scene("SOLID 1\nWINDOW 100,50,300,100,0\nMESSAGE 0,0\nMESSAGE 0,1\nWINCLOSE 0\nRET")) 
-            , state: vm::interpreter::ExecutionResult::Paused}) // Initialize the ScriptVM resource with a new VM instance.
+        .insert_resource(ScriptVM { vm: vm::interpreter::VM::new(vm::assembler::assemble_scene("SOLID 0,1\nWINDOW 100,50,300,100,0\nMESSAGE 0,0\nMESSAGE 0,1\nWINCLOSE 0\nRET")) 
+            , state: vm::interpreter::ExecutionResult::Paused, strings: vec!["Welcome to Midgar!".to_string(), "The reactor is just ahead.".to_string()]}) // Initialize the ScriptVM resource with a new VM instance.
         .add_systems(Startup, (spawn_entity, run_script))
         .add_systems(Update, (move_player, process_vm_commands, render_text, close_dialog_on_input))
         .run();
@@ -105,7 +106,8 @@ fn process_vm_commands(mut script: ResMut<ScriptVM>, query_set_solid: Query<(Ent
     query_window_close: Query<(Entity, &WindowId)>, mut commands: Commands) 
     {
     let mut unprocessed = Vec::new();
-    for command in script.vm.commands.drain(..) {
+    let commands_to_process: Vec<_> = script.vm.commands.drain(..).collect();
+    for command in commands_to_process {
         match command {
             vm::commands::Command::SetSolid { character_id, enabled } => {
                 for (entity, field_entity_id) in query_set_solid.iter() {
@@ -130,9 +132,12 @@ fn process_vm_commands(mut script: ResMut<ScriptVM>, query_set_solid: Query<(Ent
                 ));
             }
 
-            vm::commands::Command::Message { window_id, text } => {
+            vm::commands::Command::Message { window_id, message_id } => {
                 let mut found = false;
+                let text = script.strings[message_id as usize].clone();
+
                 for (entity, id) in query_window_close.iter() {
+                    
                     if id.0 == window_id {
                         commands.entity(entity).remove::<TextContent>();
                         commands.entity(entity).insert(TextContent(text.clone()));
@@ -140,7 +145,7 @@ fn process_vm_commands(mut script: ResMut<ScriptVM>, query_set_solid: Query<(Ent
                     }
                 }
                 if !found {
-                    unprocessed.push(vm::commands::Command::Message { window_id, text });
+                    unprocessed.push(vm::commands::Command::Message { window_id, message_id });
                 }
             }
 
@@ -189,3 +194,4 @@ fn close_dialog_on_input(
         }
     }
 }
+

@@ -59,7 +59,7 @@ impl Opcode {
         match self {
             Opcode::Anime1 => vec![1, 1],
             Opcode::Pc => vec![1],
-            Opcode::Solid => vec![1],
+            Opcode::Solid => vec![1, 1],
             Opcode::Ifub => vec![1, 1, 1, 2],
             Opcode::Ret => vec![],
             Opcode::Window => vec![2, 2, 2, 2, 1],
