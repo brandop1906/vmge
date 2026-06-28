@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::text::TextBounds;
 
 #[derive(Resource)]
 struct ScriptVM {
@@ -162,16 +163,18 @@ fn process_vm_commands(mut script: ResMut<ScriptVM>, query_set_solid: Query<(Ent
     script.vm.commands.extend(unprocessed);
 }
 
-fn render_text(query: Query<(Entity, &TextContent), Added<TextContent>>, mut commands: Commands) {
-    for (entity, text_content) in query.iter() {
+fn render_text(query: Query<(Entity, &TextContent, &Sprite), Added<TextContent>>, mut commands: Commands) {
+    for (entity, text_content, sprite) in query.iter() {
         commands.entity(entity).with_children(|parent| {
+            let size = sprite.custom_size.unwrap();
             parent.spawn((
                 Text2d::new(&text_content.0),
                 TextFont {
                     font_size: 20.0,
                     ..default()
-                },
-                Transform::from_xyz(0.0, 0.0, 1.0),
+                },  
+                TextBounds::from(sprite.custom_size.unwrap()),
+                Transform::from_xyz(-size.x / 2.0 + 160.0, size.y / 2.0 - 60.0, 1.0),
             ));
         });
     }
