@@ -48,7 +48,10 @@ pub struct Movement
     pub speed_y: f32,
     }
 
-    pub fn move_player(mut query: Query<(&mut Transform, &Movement)>, input: Res<ButtonInput<KeyCode>>, time: Res<Time>) {
+    pub fn move_player(mut query: Query<(&mut Transform, &Movement)>, window_query: Query<&WindowId>, input: Res<ButtonInput<KeyCode>>, time: Res<Time>) {
+        if !window_query.is_empty() {
+            return;
+        }
         for (mut transform, movement) in query.iter_mut() {
             let mut direction = Vec2::ZERO;
             if input.pressed(KeyCode::ArrowLeft) || input.pressed(KeyCode::KeyA) {
