@@ -113,4 +113,10 @@ impl VM {
             
         }
     }
+
+    pub fn load_bytecode(&mut self, bytecode: Vec<u8>) {
+        self.bytecode = bytecode;
+        self.counter_position = 0;
+        self.commands.clear();
+    }
 }

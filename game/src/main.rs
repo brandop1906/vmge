@@ -9,13 +9,18 @@ fn main() {
     let mut walk_area = walkmesh::WalkableArea::new();
     walk_area.add_walkable_mesh(walkmesh::WalkableMesh::new(-620.0, -150.0, 620.0, -75.0));
 
+    let mut script_library = ScriptLibrary::new();
+    script_library.add(1, vm::assembler::assemble_scene("WINDOW 100,50,300,100,0\nMESSAGE 0,0\nMESSAGE 0,1\nWINCLOSE 0\nRET"),
+        vec!["Welcome to Midgar!".to_string(), "The reactor is just ahead.".to_string()]);
+
     App::new()
         .add_plugins(DefaultPlugins)
-        .insert_resource(ScriptVM::new(vm::assembler::assemble_scene("SOLID 0,1\nWINDOW 100,50,300,100,0\nMESSAGE 0,0\nMESSAGE 0,1\nWINCLOSE 0\nRET"), 
-        vec!["Welcome to Midgar!".to_string(), "The reactor is just ahead.".to_string()]))
+        .insert_resource(ScriptVM::new(vec![], vec![]))
         .insert_resource(walk_area)
-        .add_systems(Startup, (spawn_entity, run_script))
-        .add_systems(Update, (move_player, process_vm_commands, render_text, close_dialog_on_input))
+        .insert_resource(script_library)
+        .add_systems(Startup, spawn_entity)
+        .add_systems(Update, (move_player, process_vm_commands, render_text, 
+            close_dialog_on_input, player_interact))
         .run();
 }
 
@@ -46,7 +51,13 @@ pub fn spawn_entity(mut commands: Commands,  asset_server: Res<AssetServer>) {
         Transform::from_xyz(0.0, 0.0, 0.0),
     ));
 
-    commands.spawn(Name { name: "NPC".to_string() });
+    commands.spawn((
+        Sprite::from_image(asset_server.load(r"NPC_down.png")), 
+        Transform::from_xyz(525.0, -75.0, 1.0).with_scale(Vec3::splat(0.5)), 
+        Name { name: "NPC".to_string() }, 
+        Solid,
+        FieldEntityId { id: 1 },
+    ));
 }
 
 #[derive(Component)]

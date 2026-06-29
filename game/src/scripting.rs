@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::text::TextBounds;
+use std::collections::HashMap;
 
 #[derive(Resource)]
 pub struct ScriptVM {
@@ -13,10 +14,16 @@ impl ScriptVM {
     pub fn new(bytecode: Vec<u8>, strings: Vec<String>) -> Self {
         ScriptVM {
             vm: vm::interpreter::VM::new(bytecode),
-            state: vm::interpreter::ExecutionResult::Paused,
+            state: vm::interpreter::ExecutionResult::Running,
             strings : strings,
             pending: Vec::new(),
         }
+    }
+
+    pub fn load_and_run(&mut self, bytecode: Vec<u8>, strings: Vec<String>) {
+    self.vm.load_bytecode(bytecode);
+    self.strings = strings;
+    self.state = self.vm.run();
     }
 }
 
@@ -42,6 +49,28 @@ pub struct WindowId(pub u8);
 
 #[derive(Component)]
 pub struct TextContent(pub String);
+
+#[derive(Resource)]
+pub struct ScriptLibrary {
+    scripts: HashMap<u8, (Vec<u8>, Vec<String>)>,
+}
+
+impl ScriptLibrary {
+    pub fn new() -> Self {
+        ScriptLibrary { scripts: HashMap::new() }
+    }
+
+    pub fn add(&mut self, script_id: u8, bytecode: Vec<u8>, strings: Vec<String>) {
+        self.scripts.insert(script_id, (bytecode, strings));
+    }
+
+    pub fn get(&self, script_id: u8) -> Option<&(Vec<u8>, Vec<String>)>  {
+        self.scripts.get(&script_id)
+    }
+}   
+
+
+
 
 pub fn process_vm_commands(mut script: ResMut<ScriptVM>, query_set_solid: Query<(Entity, &FieldEntityId)>, 
     query_window_close: Query<(Entity, &WindowId)>, mut commands: Commands) 

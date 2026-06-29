@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::scripting::WindowId;
+use crate::scripting::*;
 use crate::walkmesh;
 
 #[derive(Component)]
@@ -51,11 +51,31 @@ pub struct Movement
                 sprite.image = player_images.player_right.clone();
             }
 
-            println!("Player position: ({}, {})", transform.translation.x, transform.translation.y);
+            //println!("Player position: ({}, {})", transform.translation.x, transform.translation.y);
 
             transform.translation = walk_area.clamp_position(transform.translation);
         }
     }
+
+pub fn player_interact(query_player_pos:  Query<&Transform, With<PlayerControlled>>, 
+    query_npc_pos:  Query<(&FieldEntityId, &Transform), Without<PlayerControlled>>,  
+    input: Res<ButtonInput<KeyCode>>, window_query: Query<&WindowId>, mut script_vm: ResMut<ScriptVM>,
+    script_lib: Res<ScriptLibrary>) {
+    if !window_query.is_empty() {
+        return;
+    }
+    for player_pos in query_player_pos.iter() {
+        for (npc_id, npc_pos) in query_npc_pos.iter() {
+            let distance = (player_pos.translation - npc_pos.translation).length();
+            //println!("Distance to NPC {}: {}", npc_id.id, distance);
+            if distance < 50.0 && input.just_pressed(KeyCode::Space) {
+                if let Some((bytecode, strings)) = script_lib.get(npc_id.id) {
+                    script_vm.load_and_run(bytecode.clone(), strings.clone());
+                }
+            }
+        }
+    }
+}
 
 #[derive(Resource)]
 pub struct PlayerImages {
