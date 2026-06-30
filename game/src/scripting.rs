@@ -32,10 +32,6 @@ pub struct PendingCommand {
     retry_count: u8,
 }
 
-pub fn run_script(mut script: ResMut<ScriptVM>) {
-    script.state = script.vm.run();
-}
-
 #[derive(Component)]
 pub struct Solid; // Add a Solid component to represent solid entities.
 

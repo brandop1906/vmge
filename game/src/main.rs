@@ -4,6 +4,7 @@ use player::*;
 mod scripting;
 mod walkmesh;
 mod player;
+mod scene;
 
 fn main() {
     let mut walk_area = walkmesh::WalkableArea::new();
