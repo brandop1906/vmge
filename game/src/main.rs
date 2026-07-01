@@ -1,27 +1,71 @@
 use bevy::prelude::*;
 use scripting::*;
 use player::*;
+use scene::*;
 mod scripting;
 mod walkmesh;
 mod player;
 mod scene;
 
 fn main() {
-    let mut walk_area = walkmesh::WalkableArea::new();
-    walk_area.add_walkable_mesh(walkmesh::WalkableMesh::new(-620.0, -150.0, 620.0, -75.0));
 
-    let mut script_library = ScriptLibrary::new();
-    script_library.add(1, vm::assembler::assemble_scene("WINDOW 100,50,300,100,0\nMESSAGE 0,0\nMESSAGE 0,1\nWINCLOSE 0\nRET"),
-        vec!["Welcome to Midgar!".to_string(), "The reactor is just ahead.".to_string()]);
+    let reactor = SceneDef {
+        background: "reactor.png".to_string(),
+        npcs: vec![],
+        scripts: ScriptLibrary::new(),
+        walkmeshes: vec![walkmesh::WalkableMesh::new(-620.0, -150.0, 620.0, -75.0)],
+        scene_change: vec![
+            ExitDef {
+                target_scene: "town".to_string(),
+                trigger_area: Rect::new(-640.0, -300.0, -600.0, 300.0),
+                player_pos: Vec2::new(600.0, -100.0),
+            }
+        ],
+        default_player_pos: Vec2::new(0.0, 0.0),
+    };
+
+    let town = SceneDef {
+        background: "town.png".to_string(),
+        npcs: vec![
+            NpcDef {
+                sprite: "NPC_down.png".to_string(),
+                name: "Villager".to_string(),
+                position: Vec2::new(550.0, -100.0),
+                field_identity: 1,
+                solid: true,
+            }
+        ],
+        walkmeshes: vec![walkmesh::WalkableMesh::new(-620.0, -150.0, 620.0, -75.0)],
+        scripts: {
+            let mut lib = ScriptLibrary::new();
+            lib.add(1, vm::assembler::assemble_scene("WINDOW 100,50,300,100,0\nMESSAGE 0,0\nMESSAGE 0,1\nWINCLOSE 0\nRET"), 
+            vec!["Welcome to Midgar!".to_string(), "The reactor is just ahead.".to_string()]);
+            lib
+        },
+        default_player_pos: Vec2::new(0.0, 0.0),
+        scene_change: vec![
+            ExitDef {
+                target_scene: "reactor".to_string(),
+                trigger_area: Rect::new(600.0, -300.0, 640.0, 300.0),
+                player_pos: Vec2::new(-600.0, -100.0),
+            }
+        ],
+    };
+
+    let mut scene_lib = SceneLibrary::new();
+    scene_lib.add_scene("town".to_string(), town);
+    scene_lib.add_scene("reactor".to_string(), reactor);
 
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(ScriptVM::new(vec![], vec![]))
-        .insert_resource(walk_area)
-        .insert_resource(script_library)
-        .add_systems(Startup, spawn_entity)
+        .insert_resource(walkmesh::WalkableArea::new())
+        .insert_resource(ScriptLibrary::new())
+        .insert_resource(scene_lib)
+        .init_resource::<Messages<SceneChangeRequest>>()
+        .add_systems(Startup, (spawn_entity, scene_startup))
         .add_systems(Update, (move_player, process_vm_commands, render_text, 
-            close_dialog_on_input, player_interact))
+            close_dialog_on_input, player_interact, detection, transition))
         .run();
 }
 
@@ -36,33 +80,10 @@ pub fn spawn_entity(mut commands: Commands,  asset_server: Res<AssetServer>) {
     commands.spawn((
         Sprite::from_image(asset_server.load(r"Zane_down.png")),
         Transform::from_xyz(0.0, 0.0, 1.0).with_scale(Vec3::splat(0.5)),
-        Name { name: "Player".to_string() }, 
+        Name::new("Player"), 
         Movement { speed_x: 200.0, speed_y: 200.0 },  // Add the Movement component with desired speed values.
         PlayerControlled, // Add the PlayerControlled component to mark this entity as player-controlled.
         Solid, // Add the Solid component to mark this entity as solid. This can be used for collision detection or other purposes.
         FieldEntityId { id: 0 } // Add the FieldEntityId component with an ID of 0. This can be used to identify entities within a game field or similar structure.
     ));
-
-    commands.spawn((
-        Sprite {
-            image: asset_server.load(r"town.png"),
-            custom_size: Some(Vec2::new(1280.0, 720.0)), // Set the custom size of the sprite
-            ..default()
-        },
-        Transform::from_xyz(0.0, 0.0, 0.0),
-    ));
-
-    commands.spawn((
-        Sprite::from_image(asset_server.load(r"NPC_down.png")), 
-        Transform::from_xyz(525.0, -75.0, 1.0).with_scale(Vec3::splat(0.5)), 
-        Name { name: "NPC".to_string() }, 
-        Solid,
-        FieldEntityId { id: 1 },
-    ));
 }
-
-#[derive(Component)]
-pub struct Name
-    {
-        pub name: String,
-    }

@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+#[derive(Clone)]
 pub struct WalkableMesh {
     min_x: f32,
     min_y: f32,
@@ -7,7 +8,7 @@ pub struct WalkableMesh {
     max_y: f32,
 }
 
-#[derive(Resource)]
+#[derive(Resource, Clone)]
 pub struct WalkableArea {
     walkable_mesh: Vec<WalkableMesh>,
 }
@@ -28,6 +29,10 @@ impl WalkableArea {
         WalkableArea {
             walkable_mesh: Vec::new(),
         }
+    }
+
+    pub fn set_walkable_mesh(&mut self, meshes: Vec<WalkableMesh>) {
+        self.walkable_mesh = meshes;
     }
 
     pub fn add_walkable_mesh(&mut self, mesh: WalkableMesh) {

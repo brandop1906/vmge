@@ -46,7 +46,7 @@ pub struct WindowId(pub u8);
 #[derive(Component)]
 pub struct TextContent(pub String);
 
-#[derive(Resource)]
+#[derive(Resource, Clone)]
 pub struct ScriptLibrary {
     scripts: HashMap<u8, (Vec<u8>, Vec<String>)>,
 }
