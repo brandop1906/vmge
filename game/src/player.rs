@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use crate::scripting::*;
 use crate::walkmesh;
+use crate::scene::TransitionOverlay;
 
 #[derive(Component)]
 pub struct PlayerControlled;
@@ -12,10 +13,13 @@ pub struct Movement
     pub speed_y: f32,
     }
 
-    pub fn move_player(mut query: Query<(&mut Transform, &Movement, &mut Sprite)>, window_query: Query<&WindowId>, 
+    pub fn move_player(mut query: Query<(&mut Transform, &Movement, &mut Sprite)>, window_query: Query<&WindowId>, transition_query: Query<&TransitionOverlay>, 
     input: Res<ButtonInput<KeyCode>>, time: Res<Time>, walk_area: Res<walkmesh::WalkableArea>, 
     player_images: Res<PlayerImages>) {
         if !window_query.is_empty() {
+            return;
+        }
+        if !transition_query.is_empty() {
             return;
         }
         for (mut transform, movement, mut sprite) in query.iter_mut() {

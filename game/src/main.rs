@@ -13,12 +13,12 @@ fn main() {
         background: "reactor.png".to_string(),
         npcs: vec![],
         scripts: ScriptLibrary::new(),
-        walkmeshes: vec![walkmesh::WalkableMesh::new(-620.0, -150.0, 620.0, -75.0)],
+        walkmeshes: vec![walkmesh::WalkableMesh::new(-620.0, -110.0, 620.0, -25.0)],
         scene_change: vec![
             ExitDef {
                 target_scene: "town".to_string(),
                 trigger_area: Rect::new(-640.0, -300.0, -600.0, 300.0),
-                player_pos: Vec2::new(600.0, -100.0),
+                player_pos: Vec2::new(580.0, -100.0),
             }
         ],
         default_player_pos: Vec2::new(0.0, 0.0),
@@ -47,7 +47,7 @@ fn main() {
             ExitDef {
                 target_scene: "reactor".to_string(),
                 trigger_area: Rect::new(600.0, -300.0, 640.0, 300.0),
-                player_pos: Vec2::new(-600.0, -100.0),
+                player_pos: Vec2::new(-580.0, -100.0),
             }
         ],
     };
@@ -65,7 +65,7 @@ fn main() {
         .init_resource::<Messages<SceneChangeRequest>>()
         .add_systems(Startup, (spawn_entity, scene_startup))
         .add_systems(Update, (move_player, process_vm_commands, render_text, 
-            close_dialog_on_input, player_interact, detection, transition))
+            close_dialog_on_input, player_interact, detection, transition, update_fade))
         .run();
 }
 

@@ -40,6 +40,9 @@ impl WalkableArea {
     }
 
     pub fn clamp_position(&self, position: Vec3) -> Vec3 {
+        if self.walkable_mesh.is_empty() {
+            return position;
+        }
         let mut clamped_position = position;
         let mesh = &self.walkable_mesh[0];
         clamped_position.x = position.x.clamp(mesh.min_x, mesh.max_x);

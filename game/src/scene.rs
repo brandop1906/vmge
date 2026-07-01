@@ -66,14 +66,29 @@ pub struct ExitDef {
 #[derive(Component)]
 pub struct SceneEntity;
 
-
-pub fn detection(position_query: Query<&Transform, With<PlayerControlled>>, mut scene_change_event_writer: MessageWriter<SceneChangeRequest>, 
-    scenes: Res<SceneLibrary>) {
+pub fn detection(position_query: Query<&Transform, With<PlayerControlled>>, 
+    scenes: Res<SceneLibrary>, mut commands: Commands, transition_overlay_query: Query<Entity, With<TransitionOverlay>>) {
     let player_pos = position_query.single().unwrap().translation.truncate();
+    if !transition_overlay_query.is_empty() {
+        return;
+    }
     if let Some(current_scene) = scenes.scenes.get(&scenes.current_scene) {
         for scene_change in &current_scene.scene_change {
             if scene_change.trigger_area.contains(player_pos) {
-                scene_change_event_writer.write(SceneChangeRequest { scene_id: scene_change.target_scene.clone(), player_pos: scene_change.player_pos });
+                commands.spawn((
+                    TransitionOverlay {
+                        phase: FadePhase::FadingOut,
+                        timer: 0.0,
+                        target_scene: scene_change.target_scene.clone(),
+                        player_pos: scene_change.player_pos,
+                    },
+                    Sprite {
+                        color: Color::srgba(0.0, 0.0, 0.0, 0.0),
+                        custom_size: Some(Vec2::new(1280.0, 720.0)),
+                        ..default()
+                    },
+                    Transform::from_xyz(0.0, 0.0, 3.0),
+                ));
             }
         }
     }
@@ -119,7 +134,45 @@ pub fn transition(mut scene: MessageReader<SceneChangeRequest>, mut scenes: ResM
         }
     }
 
+pub fn update_fade(mut transition_overlay_query: Query<(Entity, &mut TransitionOverlay, &mut Sprite)>, time: Res<Time>, 
+    mut scene_change_event_writer: MessageWriter<SceneChangeRequest>, mut commands: Commands) {
+    for (entity, mut overlay, mut sprite) in &mut transition_overlay_query {
+        match overlay.phase {
+            FadePhase::FadingOut => {
+                overlay.timer += time.delta_secs();
+                let alpha = (overlay.timer / 1.0).clamp(0.0, 1.0);
+                sprite.color = Color::srgba(0.0, 0.0, 0.0, alpha);
+                if alpha >= 1.0 {
+                    scene_change_event_writer.write(SceneChangeRequest { scene_id: overlay.target_scene.clone(), player_pos: overlay.player_pos });
+                    overlay.phase = FadePhase::FadingIn;
+                    overlay.timer = 0.0;
+                }
+            }
+            FadePhase::FadingIn => {
+                overlay.timer += time.delta_secs();
+                let alpha = (1.0 - (overlay.timer / 1.0)).clamp(0.0, 1.0);
+                sprite.color = Color::srgba(0.0, 0.0, 0.0, alpha);
+                if alpha <= 0.0 {
+                    commands.entity(entity).despawn();
+                }
+            }
+        }
+    }
+}
+
 pub fn scene_startup(mut scene_change_event_writer: MessageWriter<SceneChangeRequest>) {
     scene_change_event_writer.write(SceneChangeRequest { scene_id: "town".to_string(), player_pos: Vec2::new(0.0, 0.0) });
 }
     
+#[derive(Component)]
+pub struct TransitionOverlay {
+    pub phase: FadePhase,
+    pub timer: f32,
+    pub target_scene: String,
+    pub player_pos: Vec2, 
+}
+
+pub enum FadePhase {
+    FadingOut,
+    FadingIn,
+}
