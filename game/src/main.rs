@@ -2,10 +2,14 @@ use bevy::prelude::*;
 use scripting::*;
 use player::*;
 use scene::*;
+use state::*;
+use battle_system::*;
 mod scripting;
 mod walkmesh;
 mod player;
 mod scene;
+mod state;
+mod battle_system;
 
 fn main() {
 
@@ -21,6 +25,8 @@ fn main() {
                 player_pos: Vec2::new(580.0, -100.0),
             }
         ],
+        encounter_rate: 1.0,
+        encounter_threshold: 5.0,
         default_player_pos: Vec2::new(0.0, 0.0),
     };
 
@@ -35,6 +41,8 @@ fn main() {
                 solid: true,
             }
         ],
+        encounter_rate: 0.0,
+        encounter_threshold: 100.0,
         walkmeshes: vec![walkmesh::WalkableMesh::new(-620.0, -150.0, 620.0, -75.0)],
         scripts: {
             let mut lib = ScriptLibrary::new();
@@ -62,12 +70,15 @@ fn main() {
         .insert_resource(walkmesh::WalkableArea::new())
         .insert_resource(ScriptLibrary::new())
         .insert_resource(scene_lib)
+        .insert_resource(battle_system::EncounterTracker { danger: 0.0 })
+        .insert_state(GameState::Field)
         .init_resource::<Messages<SceneChangeRequest>>()
         .add_systems(Startup, (spawn_entity, scene_startup))
         .add_systems(Update, (move_player, process_vm_commands, render_text, 
-            close_dialog_on_input, player_interact, detection, transition, update_fade))
+            close_dialog_on_input, player_interact, detection, transition, update_fade, encounter_check_system)
+            .run_if(in_state(GameState::Field)))
         .run();
-}
+}   
 
 pub fn spawn_entity(mut commands: Commands,  asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);

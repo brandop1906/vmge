@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 vm = { path = "../vm" }
 bevy = "0.18"
+rand = "0.8"

@@ -44,6 +44,8 @@ pub struct SceneDef {
     pub scripts: ScriptLibrary,
     pub scene_change: Vec<ExitDef>,
     pub default_player_pos: Vec2,
+    pub encounter_rate: f32,
+    pub encounter_threshold: f32,
 }
 
 #[derive(Clone)]
